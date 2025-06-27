@@ -8,14 +8,17 @@ using std::memcpy;
 #define UART_BUF_SIZE 64
 const uint8_t ID[4] = {0x41, 0x42, 0x43, 0x44}; // "ABCD"
 
+///////////////////////////////////////////////////////////////////////////////////////
 typedef struct
 {
 	uint8_t command; 
 	uint8_t data[UART_BUF_SIZE];
 } Messange_t;
+//////////////////////////////////////////////////////////////////////////////////////
 
 Messange_t MESS; // MESSANGE
 
+//////////////////////////////////////////////////////////////////////////////////////
 enum STATUS
 {
 	WH_ID,
@@ -24,15 +27,18 @@ enum STATUS
 	WH_DATA,
 	WH_CRC
 };
+//////////////////////////////////////////////////////////////////////////////////////
 
 STATUS state;
 
+//////////////////////////////////////////////////////////////////////////////////////
 typedef struct
 {
 	uint8_t FIFO_data[UART_BUF_SIZE];
 	volatile uint32_t head = 0;
 	uint32_t tail = 0;
 } FIFO_t;
+//////////////////////////////////////////////////////////////////////////////////////
 
 FIFO_t fifo_rx; // FIFO
 
@@ -58,21 +64,30 @@ void FIFO_write(uint8_t data)
 	fifo_rx.FIFO_data[(fifo_rx.head++) & (UART_BUF_SIZE - 1)] = data;
 }
 
-uint8_t compute_CRC(uint8_t data, uint8_t len)
+uint8_t compute_CRC(uint8_t crc, uint8_t len, uint32_t comm, uint8_t* data)
 {
 	uint8_t sum_CRC = 0;
-	sum_CRC = ID[0] + ID[1] + ID[2] + ID[3] + len + MESS.command;
+	sum_CRC = ID[0] + ID[1] + ID[2] + ID[3] + len + comm;
 	for (int i = 0; i < len - 1; i++)
 	{
-		sum_CRC += MESS.data[i] + MESS.data[i + 1];
+		sum_CRC += data[i] + data[i + 1];
 	}
-	return sum_CRC;
+	if (crc == sum_CRC)
+	{
+		return 1;
+	}
+	else 
+	{
+		return 0;
+	}
 }
 
 uint8_t Parse_FIFO_byte()
 {
   static uint32_t success = 0;
   static uint32_t len = 0;
+	static uint32_t command = 0;
+	static uint8_t buff[UART_BUF_SIZE];
   uint8_t data;
 
   while (FIFO_Available() > 0)
@@ -111,16 +126,16 @@ uint8_t Parse_FIFO_byte()
         break;
 
       case WH_COM:
-        MESS.command = FIFO_read();
+        command = FIFO_read();
         state = WH_DATA;
         break;
 
       case WH_DATA:
         if (FIFO_Available() >= len)
         {
-          for (uint32_t i = 0; i < len; i++)
+          for (uint32_t i = 0; i < len - 1; i++)
           {
-            MESS.data[i] = FIFO_read();
+            buff[i] = FIFO_read();
           }
           state = WH_CRC;
         }
@@ -135,8 +150,13 @@ uint8_t Parse_FIFO_byte()
         {
           uint8_t crc = FIFO_read();
           state = WH_ID; // Переход в начальное состояние
-          if (compute_CRC(crc, len))
+          if (compute_CRC(crc, len, command, buff))
           {
+						MESS.command = command;
+						for (int i = 0; i < len; i++)
+						{
+							MESS.data[i] = buff[i];
+						}
             return 1; // Всё ок
           }
           else
