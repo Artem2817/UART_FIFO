@@ -8,7 +8,17 @@ using std::memcpy;
 #define UART_BUF_SIZE 64
 const uint8_t ID[4] = {0x41, 0x42, 0x43, 0x44}; // "ABCD"
 
-void SYSCLK(void) {
+typedef struct
+{
+	uint8_t FIFO_data[UART_BUF_SIZE];
+	volatile uint32_t head = 0;
+	uint32_t tail = 0;
+} FIFO_t;
+
+FIFO_t fifo_rx;
+
+void SYSCLK(void) 
+{
     // Включаем HSE
     RCC->CR |= RCC_CR_HSEON;
     while (!(RCC->CR & RCC_CR_HSERDY));
@@ -45,7 +55,8 @@ void SYSCLK(void) {
     SystemCoreClockUpdate();
 }
 
-void UART2_CONF(void) {
+void UART2_CONF(void) 
+{
     // Тактирование USART2 и GPIOA
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
@@ -76,18 +87,25 @@ void UART2_CONF(void) {
 }
 
 
-int main(void) {
+int main(void) 
+{
   SYSCLK();
   UART2_CONF();
 
-    while (1) {
-
+    while (1) 
+		{
+			
     }
 }
 
-extern "C" void USART2_IRQHandler(void) {
+extern "C" void USART2_IRQHandler(void) 
+{
     // Проверка флага приёма
-    if (USART2->SR & USART_SR_RXNE) {
-        uint8_t data = USART2->DR; // Чтение данных (сбрасывает флаг)
+    if (USART2->SR & USART_SR_RXNE) 
+		{
+			uint8_t data = USART2->DR; // Чтение данных (сбрасывает флаг)
+			
+			fifo_rx.FIFO_data[fifo_rx.head] = 
+			
 		}
 }
