@@ -10,12 +10,31 @@ const uint8_t ID[4] = {0x41, 0x42, 0x43, 0x44}; // "ABCD"
 
 typedef struct
 {
+	uint8_t command; 
+	uint8_t data[UART_BUF_SIZE];
+} Messange_t;
+
+Messange_t MESS; // MESSANGE
+
+enum STATUS
+{
+	WH_ID,
+	WH_LEN,
+	WH_COM,
+	WH_DATA,
+	WH_CRC
+};
+
+STATUS state;
+
+typedef struct
+{
 	uint8_t FIFO_data[UART_BUF_SIZE];
 	volatile uint32_t head = 0;
 	uint32_t tail = 0;
 } FIFO_t;
 
-FIFO_t fifo_rx;
+FIFO_t fifo_rx; // FIFO
 
 uint32_t FIFO_Available()
 {
@@ -29,7 +48,116 @@ uint32_t FIFO_Available()
 	}
 }
 
+uint8_t FIFO_read()
+{
+	return fifo_rx.FIFO_data[(fifo_rx.tail++) & (UART_BUF_SIZE -1)];
+}
 
+void FIFO_write(uint8_t data)
+{
+	fifo_rx.FIFO_data[(fifo_rx.head++) & (UART_BUF_SIZE - 1)] = data;
+}
+
+uint8_t compute_CRC(uint8_t data, uint8_t len)
+{
+	uint8_t sum_CRC = 0;
+	sum_CRC = ID[0] + ID[1] + ID[2] + ID[3] + len + MESS.command;
+	for (int i = 0; i < len - 1; i++)
+	{
+		sum_CRC += MESS.data[i] + MESS.data[i + 1];
+	}
+	return sum_CRC;
+}
+
+uint8_t Parse_FIFO_byte()
+{
+  static uint32_t success = 0;
+  static uint32_t len = 0;
+  uint8_t data;
+
+  while (FIFO_Available() > 0)
+  {
+    switch (state)
+    {
+      case WH_ID:
+        data = FIFO_read();
+        if (data == ID[success])
+        {
+          success++;
+          if (success >= 4)
+          {
+            state = WH_LEN;
+            success = 0;
+          }
+        }
+        else
+        {
+          success = 0;
+        }
+        break;
+
+      case WH_LEN:
+        data = FIFO_read();
+        if (data != 0)
+        {
+          len = data;
+          state = WH_COM;
+        }
+        else
+        {
+          state = WH_ID;
+          return 0; // Некорректная длина
+        }
+        break;
+
+      case WH_COM:
+        MESS.command = FIFO_read();
+        state = WH_DATA;
+        break;
+
+      case WH_DATA:
+        if (FIFO_Available() >= len)
+        {
+          for (uint32_t i = 0; i < len; i++)
+          {
+            MESS.data[i] = FIFO_read();
+          }
+          state = WH_CRC;
+        }
+        else
+        {
+          return 3; // Недостаточно данных, выходим и ждём
+        }
+        break;
+
+      case WH_CRC:
+        if (FIFO_Available() > 0)
+        {
+          uint8_t crc = FIFO_read();
+          state = WH_ID; // Переход в начальное состояние
+          if (compute_CRC(crc, len))
+          {
+            return 1; // Всё ок
+          }
+          else
+          {
+            return 2; // Ошибка CRC
+          }
+        }
+        else
+        {
+          return 3; // Недостаточно данных, ждём CRC
+        }
+        break;
+
+      default:
+        state = WH_ID;
+        break;
+    }
+  }
+
+  return 3; // Нет данных или не удалось завершить парсинг
+}
 
 void SYSCLK(void) 
 {
@@ -105,10 +233,14 @@ int main(void)
 {
   SYSCLK();
   UART2_CONF();
-
+	uint8_t temp = 0;
     while (1) 
 		{
-			
+			Parse_FIFO_byte();
+			if (MESS.command == 1)
+			{
+				temp = MESS.data[0];
+			}
     }
 }
 
@@ -118,6 +250,6 @@ extern "C" void USART2_IRQHandler(void)
     if (USART2->SR & USART_SR_RXNE) 
 		{
 			uint8_t data = USART2->DR; // Чтение данных (сбрасывает флаг)
-			fifo_rx.FIFO_data[(fifo_rx.head++) & (UART_BUF_SIZE - 1)] = data;
+			FIFO_write(data);
 		}
 }
