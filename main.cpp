@@ -17,6 +17,20 @@ typedef struct
 
 FIFO_t fifo_rx;
 
+uint32_t FIFO_Available()
+{
+	if ((fifo_rx.head - fifo_rx.tail) != 0 )
+	{
+		return (fifo_rx.head - fifo_rx.tail); // возвращаем скольок байт есть в fifo
+	}
+	else
+	{
+		return 0; // fifo пуст
+	}
+}
+
+
+
 void SYSCLK(void) 
 {
     // Включаем HSE
@@ -104,8 +118,6 @@ extern "C" void USART2_IRQHandler(void)
     if (USART2->SR & USART_SR_RXNE) 
 		{
 			uint8_t data = USART2->DR; // Чтение данных (сбрасывает флаг)
-			
-			fifo_rx.FIFO_data[fifo_rx.head] = 
-			
+			fifo_rx.FIFO_data[(fifo_rx.head++) & (UART_BUF_SIZE - 1)] = data;
 		}
 }
