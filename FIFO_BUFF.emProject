@@ -1,0 +1,91 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="FIFO_BUFF" target="8" version="2">
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="None" />
+  <configuration
+    Name="External Keil ARMCLANG"
+    Platform="ARM"
+    hidden="Yes"
+    macros="KEIL_TOOLKIT_DIR=C:/Keil_v5/ARM" />
+  <configuration Name="Internal" Platform="ARM" hidden="Yes" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="Level 2"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="Level 2 balanced" />
+  <configuration Name="Target 1" hidden="Yes" />
+  <configuration
+    Name="Target 1 External"
+    inherited_configurations="External Keil ARMCLANG;Target 1" />
+  <configuration
+    Name="Target 1 Internal"
+    inherited_configurations="Internal;Target 1" />
+  <project Name="UART_FIFO_SEGG">
+    <configuration
+      LIBRARY_IO_TYPE="RTT"
+      Name="Common"
+      Target="STM32F401CBUx"
+      arm_architecture="v7EM"
+      arm_compiler_variant="gcc"
+      arm_core_type="Cortex-M4"
+      arm_endian="Little"
+      arm_fp_abi="Hard"
+      arm_fpu_type="FPv4-SP-D16"
+      arm_linker_heap_size="1024"
+      arm_linker_process_stack_size="0"
+      arm_linker_stack_size="2048"
+      arm_linker_variant="SEGGER"
+      arm_simulator_memory_simulation_parameter="ROM;0x08000000;0x00020000;RAM;0x20000000;0x00010000"
+      arm_target_device_name="STM32F401CB"
+      arm_target_interface_type="SWD"
+      c_preprocessor_definitions="ARM_MATH_CM4;STM32F401xC;__STM32F401_SUBFAMILY;__STM32F4XX_FAMILY"
+      c_user_include_directories="$(ProjectDir)/CMSIS_5/CMSIS/Core/Include;$(ProjectDir)/STM32F4xx/Device/Include"
+      debug_register_definition_file="$(ProjectDir)/STM32F401_Registers.xml"
+      debug_stack_pointer_start="__stack_end__"
+      debug_start_from_entry_point_symbol="Yes"
+      debug_target_connection="J-Link"
+      gcc_entry_point="Reset_Handler"
+      link_linker_script_file="$(ProjectDir)/STM32F4xx_Flash.icf"
+      linker_memory_map_file="$(ProjectDir)/STM32F401CBUx_MemoryMap.xml"
+      linker_output_format="hex"
+      macros="DeviceHeaderFile=$(PackagesDir)/STM32F4xx/Device/Include/stm32f4xx.h;DeviceSystemFile=$(PackagesDir)/STM32F4xx/Device/Source/system_stm32f4xx.c;DeviceVectorsFile=$(PackagesDir)/STM32F4xx/Source/stm32f401xc_Vectors.s;DeviceFamily=STM32F4xx;DeviceSubFamily=STM32F401;Target=STM32F401CBUx"
+      project_directory="../UIART_FIFO_SEGGER"
+      project_type="Executable"
+      target_reset_script="Reset();" />
+    <folder Name="CMSIS Files">
+      <file file_name="STM32F4xx/Device/Include/stm32f4xx.h" />
+      <file file_name="STM32F4xx/Device/Source/system_stm32f4xx.c">
+        <configuration
+          Name="Common"
+          default_code_section=".init"
+          default_const_section=".init_rodata" />
+      </file>
+    </folder>
+    <folder Name="Script Files">
+      <file file_name="STM32F4xx/Scripts/STM32F4xx_Target.js">
+        <configuration Name="Common" file_type="Reset Script" />
+      </file>
+    </folder>
+    <folder Name="Source Files">
+      <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;asm;inc" />
+      <file file_name="main.cpp">
+        <configuration
+          Name="Target 1 External"
+          c_files_are_cpp="Yes"
+          gcc_cplusplus_language_standard="c++20" />
+      </file>
+    </folder>
+    <folder Name="System Files">
+      <file file_name="SEGGER_THUMB_Startup.s" />
+      <file file_name="STM32F4xx/Source/stm32f401xc_Vectors.s">
+        <configuration Name="Common" file_type="Assembly" />
+      </file>
+      <file file_name="STM32F4xx/Source/STM32F4xx_Startup.s" />
+    </folder>
+  </project>
+</solution>
