@@ -29,7 +29,7 @@ enum STATUS
 };
 //////////////////////////////////////////////////////////////////////////////////////
 
-STATUS state;
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 typedef struct
@@ -82,99 +82,96 @@ uint8_t compute_CRC(uint8_t crc, uint8_t len, uint32_t comm, uint8_t* data)
 	}
 }
 
-uint8_t Parse_FIFO_byte()
+uint8_t Parse_FIFO_byte(uint8_t data)
 {
   static uint32_t success = 0;
   static uint32_t len = 0;
 	static uint32_t command = 0;
 	static uint8_t buff[UART_BUF_SIZE];
-  uint8_t data;
+	static uint32_t counter = 0;
+	static STATUS state;
 
-  while (FIFO_Available() > 0)
-  {
-    switch (state)
-    {
-      case WH_ID:
-        data = FIFO_read();
-        if (data == ID[success])
-        {
-          success++;
-          if (success >= 4)
-          {
-            state = WH_LEN;
-            success = 0;
-          }
-        }
-        else
-        {
-          success = 0;
-        }
-        break;
+	switch (state)
+	{
+		case WH_ID:
+						if (data == ID[success])
+			{
+				success++;
+				if (success >= 4)
+				{
+					state = WH_LEN;
+					success = 0;
+				}
+			}
+			else
+			{
+				success = 0;
+			}
+			break;
 
-      case WH_LEN:
-        data = FIFO_read();
-        if (data != 0)
-        {
-          len = data;
-          state = WH_COM;
-        }
-        else
-        {
-          state = WH_ID;
-          return 0; // Некорректная длина
-        }
-        break;
+		case WH_LEN:
+			if (data != 0)
+			{
+				len = data;
+				state = WH_COM;
+			}
+			else
+			{
+				state = WH_ID;
+				return 0; // Некорректная длина
+			}
+			break;
 
-      case WH_COM:
-        command = FIFO_read();
-        state = WH_DATA;
-        break;
+		case WH_COM:
+			command = data;
+			state = WH_DATA;
+			break;
 
-      case WH_DATA:
-        if (FIFO_Available() >= len)
-        {
-          for (uint32_t i = 0; i < len - 1; i++)
-          {
-            buff[i] = FIFO_read();
-          }
-          state = WH_CRC;
-        }
-        else
-        {
-          return 3; // Недостаточно данных, выходим и ждём
-        }
-        break;
+		case WH_DATA:
+			if (FIFO_Available() >= len)
+			{
+				for (uint32_t i = 0; i < len - 1; i++)
+				{
+					buff[i] = FIFO_read();
+				}
+				state = WH_CRC;
+			}
+			else
+			{
+				return 3; // Недостаточно данных, выходим и ждём
+			}
+			break;
 
-      case WH_CRC:
-        if (FIFO_Available() > 0)
-        {
-          uint8_t crc = FIFO_read();
-          state = WH_ID; // Переход в начальное состояние
-          if (compute_CRC(crc, len, command, buff))
-          {
-						MESS.command = command;
-						for (int i = 0; i < len; i++)
-						{
-							MESS.data[i] = buff[i];
-						}
-            return 1; // Всё ок
-          }
-          else
-          {
-            return 2; // Ошибка CRC
-          }
-        }
-        else
-        {
-          return 3; // Недостаточно данных, ждём CRC
-        }
-        break;
+		case WH_CRC:
+			if (FIFO_Available() > 0)
+			{
+				uint8_t crc = FIFO_read();
+				state = WH_ID; // Переход в начальное состояние
+				if (compute_CRC(crc, len, command, buff))
+				{
+					MESS.command = command;
+					for (int i = 0; i < len; i++)
+					{
+						MESS.data[i] = buff[i];
+					}
+					return 1; // Всё ок
+				}
+				else
+				{
+					return 2; // Ошибка CRC
+				}
+			}
+			else
+			{
+				return 3; // Недостаточно данных, ждём CRC
+			}
+			break;
 
-      default:
-        state = WH_ID;
-        break;
-    }
-  }
+		default:
+			state = WH_ID;
+			break;
+	}
+
 
   return 3; // Нет данных или не удалось завершить парсинг
 }
@@ -256,7 +253,12 @@ int main(void)
 	uint8_t temp = 0;
     while (1) 
 		{
-			Parse_FIFO_byte();
+			if (FIFO_Available() > 0)
+			{
+				uint8_t data = FIFO_read();
+				Parse_FIFO_byte(data);
+			}
+			
 			if (MESS.command == 1)
 			{
 				temp = MESS.data[0];
